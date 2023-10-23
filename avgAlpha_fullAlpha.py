@@ -385,14 +385,11 @@ def get_avg_FMR(sim,full_alpha,plot=False):
 
         muCurrent  = star_mass - alpha*np.log10( SFR )
 
-        mu_fit = muCurrent
-        Z_fit  = Z_use
-
-        popt = np.polyfit(mu_fit, Z_fit, 1)
+        popt = np.polyfit(muCurrent, Z_use, 1)
         a_s[index], b_s[index] = popt
-        interp = np.polyval( popt, mu_fit )
+        interp = np.polyval( popt, muCurrent )
 
-        disps[index] = np.std( np.abs(Z_fit) - np.abs(interp) ) 
+        disps[index] = np.std( np.abs(Z_use) - np.abs(interp) ) 
 
     argmin = np.argmin(disps)
 
@@ -423,8 +420,8 @@ def get_avg_FMR(sim,full_alpha,plot=False):
         axs[1].set_xlabel( r"$\langle\mu_{%s}\rangle$" %(min_alpha) )
         axs[1].set_ylabel( r"$\langle\log({\rm O/H}) + 12\rangle ~{\rm (dex)}$" )
         
-        axs[1].text( 0.05, 0.8, r'$\alpha_{\rm full} = %s$' %full_alpha, transform=axs[1].transAxes )
-        axs[1].text( 0.05, 0.7, r'$\alpha_{\rm avg}  = %s$' %min_alpha , transform=axs[1].transAxes )
+        axs[1].text( 0.05, 0.8, r'$\alpha_{\rm global} = %s$' %full_alpha, transform=axs[1].transAxes )
+        axs[1].text( 0.05, 0.7, r'$\alpha_{\rm MZR}  = %s$' %min_alpha , transform=axs[1].transAxes )
         
         xs = np.linspace( np.min(mu), np.max(mu), 100 )
         ys = min_a * xs + min_b
