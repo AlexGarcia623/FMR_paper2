@@ -134,15 +134,17 @@ def alpha_scatter(sim, ax, color, marker):
     redshifts  = []
     redshift   = 0
     
+    MZRz0 = None
+    
     for snap_index, snap in enumerate(snapshots): 
         currentDir = BLUE_DIR + 'data/' + 'snap%s/' %snap
 
-        Zgas      = np.load( currentDir + 'Zgas.npy' )
-        Zstar     = np.load( currentDir + 'Zstar.npy' ) 
-        star_mass = np.load( currentDir + 'Stellar_Mass.npy'  )
-        gas_mass  = np.load( currentDir + 'Gas_Mass.npy' )
-        SFR       = np.load( currentDir + 'SFR.npy' )
-        R_star    = np.load( currentDir + 'R_star.npy' )
+        Zgas      = np.load( currentDir + 'Zgas.npy'         )
+        Zstar     = np.load( currentDir + 'Zstar.npy'        ) 
+        star_mass = np.load( currentDir + 'Stellar_Mass.npy' )
+        gas_mass  = np.load( currentDir + 'Gas_Mass.npy'     )
+        SFR       = np.load( currentDir + 'SFR.npy'          )
+        R_star    = np.load( currentDir + 'R_star.npy'       )
         
         sfms_idx = sfmscut(star_mass, SFR)
 
@@ -165,22 +167,20 @@ def alpha_scatter(sim, ax, color, marker):
         star_mass     = np.log10(star_mass)
         Zstar         = np.log10(Zstar    )
             
-        MZR_mass , MZR_metals, _ = medianZR( star_mass, Zgas )
-        SFMS_mass, SFMS_SFRs , _ = medianZR( star_mass, SFR )
-        MS_mass  , MS_radius , _ = medianZR( star_mass, R_star )
+        MZR_mass , metals, _ = medianZR( star_mass, Zgas   )
+        SFMS_mass, SFRs  , _ = medianZR( star_mass, SFR    )
+        MS_mass  , radius, _ = medianZR( star_mass, R_star )
         
-        MZR         = interp1d( MZR_mass, MZR_metals, fill_value='extrapolate' )
-        MZR_interp  = MZR(star_mass)
+        MZR         = interp1d( MZR_mass, metals, fill_value='extrapolate' )        
+        SFMS        = interp1d( MZR_mass, SFRs  , fill_value='extrapolate' )
+        MS          = interp1d( MZR_mass, radius, fill_value='extrapolate' )
         
-        SFMS        = interp1d( SFMS_mass, SFMS_SFRs, fill_value='extrapolate' )
-        SFMS_interp = SFMS(star_mass)
+        if snap_index==0:
+            MZRz0 = MZR
         
-        MS          = interp1d( MS_mass, MS_radius, fill_value='extrapolate' )
-        MS_interp   = MS(star_mass)
-        
-        offsets_SFR = np.log10(SFR/SFMS_interp)
-        offsets_Z   = Zgas - MZR_interp
-        offsets_R   = R_star - MS_interp
+        offsets_SFR = np.log10(SFR/SFMS(star_mass))
+        offsets_Z   = Zgas   - MZR(star_mass)
+        offsets_R   = R_star - MS(star_mass)
         filter_nans = ~np.isnan( offsets_SFR )
         
         all_offsets_Z   += list( offsets_Z  [filter_nans] )
@@ -189,7 +189,6 @@ def alpha_scatter(sim, ax, color, marker):
         redshifts       += list( np.ones(sum(filter_nans)) * redshift )
         
         redshift  += 1
-        
 
     all_offsets_Z   = np.array( all_offsets_Z   )
     all_offsets_SFR = np.array( all_offsets_SFR )
@@ -235,67 +234,61 @@ def alpha_evo(sim, ax, color, marker):
     MSz0   = None
     
     for snap_index, snap in enumerate(snapshots): 
-        currentDir = BLUE_DIR + 'data/' + 'snap%s/' %snap
+            currentDir = BLUE_DIR + 'data/' + 'snap%s/' %snap
 
-        Zgas      = np.load( currentDir + 'Zgas.npy' )
-        Zstar     = np.load( currentDir + 'Zstar.npy' ) 
-        star_mass = np.load( currentDir + 'Stellar_Mass.npy'  )
-        gas_mass  = np.load( currentDir + 'Gas_Mass.npy' )
-        SFR       = np.load( currentDir + 'SFR.npy' )
-        R_star    = np.load( currentDir + 'R_star.npy' )
-        
-        sfms_idx = sfmscut(star_mass, SFR)
+            Zgas      = np.load( currentDir + 'Zgas.npy'         )
+            Zstar     = np.load( currentDir + 'Zstar.npy'        ) 
+            star_mass = np.load( currentDir + 'Stellar_Mass.npy' )
+            gas_mass  = np.load( currentDir + 'Gas_Mass.npy'     )
+            SFR       = np.load( currentDir + 'SFR.npy'          )
+            R_star    = np.load( currentDir + 'R_star.npy'       )
 
-        desired_mask = ((star_mass > 1.00E+01**(m_star_min)) &
-                        (star_mass < 1.00E+01**(m_star_max)) &
-                        (gas_mass  > 1.00E+01**(m_gas_min))  &
-                        (sfms_idx))
-        
-        gas_mass  =  gas_mass[desired_mask]
-        star_mass = star_mass[desired_mask]
-        SFR       =       SFR[desired_mask]
-        Zstar     =     Zstar[desired_mask]
-        Zgas      =      Zgas[desired_mask]
-        R_star    =    R_star[desired_mask]
-        
-        Zstar /= Zsun
-        OH     = Zgas * (zo/xh) * (1.00/16.00)
-        Zgas   = np.log10(OH) + 12
-        
-        star_mass     = np.log10(star_mass)
-        Zstar         = np.log10(Zstar    )
+            sfms_idx  = sfmscut(star_mass, SFR)
+
+            desired_mask = ((star_mass > 1.00E+01**(m_star_min)) &
+                            (star_mass < 1.00E+01**(m_star_max)) &
+                            (gas_mass  > 1.00E+01**(m_gas_min))  &
+                            (sfms_idx))
+
+            gas_mass  =  gas_mass[desired_mask]
+            star_mass = star_mass[desired_mask]
+            SFR       =       SFR[desired_mask]
+            Zstar     =     Zstar[desired_mask]
+            Zgas      =      Zgas[desired_mask]
+            R_star    =    R_star[desired_mask]
+
+            Zstar /= Zsun
+            OH     = Zgas * (zo/xh) * (1.00/16.00)
+            Zgas   = np.log10(OH) + 12
+
+            star_mass     = np.log10(star_mass)
+            Zstar         = np.log10(Zstar    )
+
+            MZR_mass , metals, _ = medianZR( star_mass, Zgas   )
+            SFMS_mass, SFRs  , _ = medianZR( star_mass, SFR    )
+            MS_mass  , radius, _ = medianZR( star_mass, R_star )
             
-        MZR_mass , MZR_metals, _ = medianZR( star_mass, Zgas )
-        SFMS_mass, SFMS_SFRs , _ = medianZR( star_mass, SFR )
-        MS_mass  , MS_radius , _ = medianZR( star_mass, R_star )
-        
-        MZR         = interp1d( MZR_mass, MZR_metals, fill_value='extrapolate' )
-        MZR_interp  = MZR(star_mass)
-        
-        SFMS        = interp1d( SFMS_mass, SFMS_SFRs, fill_value='extrapolate' )
-        SFMS_interp = SFMS(star_mass)
-        
-        MS          = interp1d( MS_mass, MS_radius, fill_value='extrapolate' )
-        MS_interp   = MS(star_mass)
-        
-        if snap_index == 0:
-            MZRz0  = MZR
-            SFMSz0 = SFMS
-            MSz0   = MS
-        
-        offsets_SFR = np.log10(SFMS_interp/SFMSz0(star_mass))
-        offsets_Z   = MZR_interp - MZRz0(star_mass)
-        offsets_R   = MS_interp - MSz0(star_mass)
-        filter_nans = ~np.isnan( offsets_SFR )
-        
-        all_offsets_Z   += list( offsets_Z  [filter_nans] )
-        all_offsets_SFR += list( offsets_SFR[filter_nans] )
-        all_offsets_R   += list( offsets_R  [filter_nans] )
-        redshifts       += list( np.ones(sum(filter_nans)) * redshift )
-        
-        redshift  += 1
-        
+            MZR  = interp1d( MZR_mass, metals, fill_value='extrapolate' )
+            SFMS = interp1d( MZR_mass, SFRs  , fill_value='extrapolate' )
+            MS   = interp1d( MZR_mass, radius, fill_value='extrapolate' )
 
+            if snap_index == 0:
+                MZRz0  = MZR
+                SFMSz0 = SFMS
+                MSz0   = MS
+            
+            offsets_SFR = np.log10( SFMS(star_mass) / SFMSz0(star_mass) )
+            offsets_Z   = MZR(star_mass) - MZRz0(star_mass)
+            offsets_R   = MS (star_mass) - MSz0 (star_mass)
+            filter_nans = ~np.isnan( offsets_SFR )
+            
+            all_offsets_Z   += list( offsets_Z  [filter_nans] )
+            all_offsets_SFR += list( offsets_SFR[filter_nans] )
+            all_offsets_R   += list( offsets_R  [filter_nans] )
+            redshifts       += list( np.ones(sum(filter_nans)) * redshift )
+
+            redshift  += 1
+    
     all_offsets_Z   = np.array( all_offsets_Z   )
     all_offsets_SFR = np.array( all_offsets_SFR )
     all_offsets_R   = np.array( all_offsets_R   )
@@ -308,6 +301,10 @@ def alpha_evo(sim, ax, color, marker):
     
     alpha_evo_idv_z = np.zeros( len(zs) )
     
+    mk_hist2d(all_offsets_SFR, all_offsets_Z, -1.0*alpha_evo_global, _,
+              BLUE + 'FMR_paper2/checks/' + 'evolution_%s' %sim + '.pdf',
+              sim, None)
+    
     for index, z in enumerate(zs):
         if index == 0:
             continue
@@ -316,6 +313,10 @@ def alpha_evo(sim, ax, color, marker):
         
         alpha_evo_idv_z[index], b = np.polyfit( x, y, 1 )
         
+        mk_hist2d(x, y, alpha_evo_idv_z[index], b,
+                  BLUE + 'FMR_paper2/checks/' + 'evolution_%s_z=%s' %(sim,index) + '.pdf',
+                  sim, r'$z=%s$' %index)
+        
     alpha_evo_idv_z *= -1
     
     ax.scatter( zs, alpha_evo_idv_z, color=color, label=whichSim2Tex[sim], marker=marker, s=100, alpha=0.75 )
@@ -323,7 +324,6 @@ def alpha_evo(sim, ax, color, marker):
     
     beta_evo_global, _ = np.polyfit( all_offsets_R, all_offsets_Z, 1 )
     beta_evo_global *= -1
-    
     
     return alpha_evo_global, alpha_evo_idv_z, beta_evo_global
 
@@ -344,12 +344,12 @@ def strong_FMR(sim):
     for snap_index, snap in enumerate(snapshots): 
         currentDir = BLUE_DIR + 'data/' + 'snap%s/' %snap
 
-        Zgas      = np.load( currentDir + 'Zgas.npy' )
-        Zstar     = np.load( currentDir + 'Zstar.npy' ) 
-        star_mass = np.load( currentDir + 'Stellar_Mass.npy'  )
-        gas_mass  = np.load( currentDir + 'Gas_Mass.npy' )
-        SFR       = np.load( currentDir + 'SFR.npy' )
-        R_star    = np.load( currentDir + 'R_star.npy' )
+        Zgas      = np.load( currentDir + 'Zgas.npy'         )
+        Zstar     = np.load( currentDir + 'Zstar.npy'        ) 
+        star_mass = np.load( currentDir + 'Stellar_Mass.npy' )
+        gas_mass  = np.load( currentDir + 'Gas_Mass.npy'     )
+        SFR       = np.load( currentDir + 'SFR.npy'          )
+        R_star    = np.load( currentDir + 'R_star.npy'       )
         
         sfms_idx = sfmscut(star_mass, SFR)
 
@@ -371,27 +371,22 @@ def strong_FMR(sim):
         
         star_mass     = np.log10(star_mass)
         Zstar         = np.log10(Zstar    )
-            
-        MZR_mass , MZR_metals, _ = medianZR( star_mass, Zgas )
-        SFMS_mass, SFMS_SFRs , _ = medianZR( star_mass, SFR )
-        MS_mass  , MS_radius , _ = medianZR( star_mass, R_star )
-        
-        MZR         = interp1d( MZR_mass, MZR_metals, fill_value='extrapolate' )
-        MZR_interp  = MZR(star_mass)
-        
-        SFMS        = interp1d( SFMS_mass, SFMS_SFRs, fill_value='extrapolate' )
-        SFMS_interp = SFMS(star_mass)
-        
-        MS          = interp1d( MS_mass, MS_radius, fill_value='extrapolate' )
-        MS_interp   = MS(star_mass)
         
         if snap_index == 0:
+            MZR_mass , metals, _ = medianZR( star_mass, Zgas   )
+            SFMS_mass, SFRs  , _ = medianZR( star_mass, SFR    )
+            MS_mass  , radius, _ = medianZR( star_mass, R_star )
+
+            MZR         = interp1d( MZR_mass, metals, fill_value='extrapolate' )
+            SFMS        = interp1d( MZR_mass, SFRs  , fill_value='extrapolate' )
+            MS          = interp1d( MZR_mass, radius, fill_value='extrapolate' )
+            
             MZRz0  = MZR
             SFMSz0 = SFMS
             MSz0   = MS
         
-        offsets_SFR = np.log10(SFR/SFMSz0(star_mass))
-        offsets_Z   = Zgas - MZRz0(star_mass)
+        offsets_SFR = np.log10( SFR / SFMSz0(star_mass) )
+        offsets_Z   = Zgas   - MZRz0(star_mass)
         offsets_R   = R_star - MSz0(star_mass)
         filter_nans = ~np.isnan( offsets_SFR )
         
@@ -401,8 +396,7 @@ def strong_FMR(sim):
         redshifts       += list( np.ones(sum(filter_nans)) * redshift )
         
         redshift  += 1
-        
-
+    
     all_offsets_Z   = np.array( all_offsets_Z   )
     all_offsets_SFR = np.array( all_offsets_SFR )
     all_offsets_R   = np.array( all_offsets_R   )
@@ -411,9 +405,13 @@ def strong_FMR(sim):
     zs = np.arange(0,9)
     
     alpha_global, _ = np.polyfit( all_offsets_SFR, all_offsets_Z, 1 )
-    alpha_global *= -1
+    alpha_global *= -1.0
     
     alpha_idv_z = np.zeros( len(zs) )
+    
+    # mk_hist2d(all_offsets_SFR, all_offsets_Z, -1.0*alpha_global, _,
+    #           BLUE + 'FMR_paper2/checks/' + 'strong_FMR_%s' %sim + '.pdf',
+    #           sim, None)
     
     for index, z in enumerate(zs):
         if index == 0:
@@ -430,9 +428,7 @@ def strong_FMR(sim):
     
     return alpha_global, alpha_idv_z, beta_global
 
-
 def medianZR( x, y, nbins = 30 ):
-    
     start = np.min(x)
     end   = np.max(x)
     
@@ -455,6 +451,33 @@ def medianZR( x, y, nbins = 30 ):
     no_nans = ~(np.isnan(bin_vals))
     
     return bin_centers[no_nans], bin_vals[no_nans], bin_cols[no_nans]
+
+def mk_hist2d(SFR, Z, a, b, savename, sim, redshift):
+    
+    if redshift == None:
+        redshift = 'All z'
+    
+    plt.clf()
+    
+    plt.hist2d( SFR, Z, bins=(100,100), cmap=plt.cm.Greys, norm=LogNorm() )
+    
+    plt.xlabel( r'$\Delta {\rm SFR}$' )
+    plt.ylabel( r'$\Delta Z_{\rm gas}$' )
+    
+    plt.axvline(0)
+    plt.axhline(0)
+    
+    x = np.linspace( np.min(SFR), np.max(SFR), 100 )
+    y = a * x + b
+
+    plt.text( 0.05, 0.9, str(round(a,2)), transform=plt.gca().transAxes )
+    
+    plt.plot( x, y, color='b' )
+
+    plt.title(sim + ' ' + redshift)
+    
+    plt.tight_layout()
+    plt.savefig( savename, bbox_inches='tight' )
 
 def line(data, a, b):
     return a*data + b
@@ -540,8 +563,8 @@ strong_idv      = []
 strong_beta     = []
 
 scatter = False
-evo     = False
-strong  = True
+evo     = True
+strong  = False
 
 if scatter:
     fig = plt.figure( figsize=(12,6) ) 
@@ -605,7 +628,8 @@ if evo:
     plt.savefig( BLUE + 'FMR_paper2/' + 'alpha_evo' + '.pdf', bbox_inches='tight' )
 
 if strong:
-    print('')
+    if scatter or evolution:
+        print('')
     print('strong FMR')
     
     for idx, sim in enumerate(sims):
