@@ -226,6 +226,10 @@ def alpha_evo(sim, ax, color, marker):
     all_offsets_SFR = []
     all_offsets_R   = []
     
+    idv_z_offsets_Z   = []
+    idv_z_offsets_SFR = []
+    idv_z_offsets_R   = []
+    
     redshifts  = []
     redshift   = 0
     
@@ -277,6 +281,7 @@ def alpha_evo(sim, ax, color, marker):
                 SFMSz0 = SFMS
                 MSz0   = MS
             
+            # Global version, does this for median MZRs
             offsets_SFR = np.log10( SFMS(star_mass) / SFMSz0(star_mass) )
             offsets_Z   = MZR(star_mass) - MZRz0(star_mass)
             offsets_R   = MS (star_mass) - MSz0 (star_mass)
@@ -285,14 +290,27 @@ def alpha_evo(sim, ax, color, marker):
             all_offsets_Z   += list( offsets_Z  [filter_nans] )
             all_offsets_SFR += list( offsets_SFR[filter_nans] )
             all_offsets_R   += list( offsets_R  [filter_nans] )
-            redshifts       += list( np.ones(sum(filter_nans)) * redshift )
+            
+            offsets_SFR = np.log10( SFR / SFMSz0(star_mass) )
+            offsets_Z   = Zgas   - MZRz0(star_mass)
+            offsets_R   = R_star - MSz0 (star_mass)
+            filter_nans = ~np.isnan( offsets_SFR )
+            
+            idv_z_offsets_Z   += list( offsets_Z  [filter_nans] )
+            idv_z_offsets_SFR += list( offsets_SFR[filter_nans] )
+            idv_z_offsets_R   += list( offsets_R  [filter_nans] )
+            redshifts         += list( np.ones(sum(filter_nans)) * redshift )
 
             redshift  += 1
     
     all_offsets_Z   = np.array( all_offsets_Z   )
     all_offsets_SFR = np.array( all_offsets_SFR )
     all_offsets_R   = np.array( all_offsets_R   )
-    redshifts       = np.array( redshifts       )
+    
+    idv_z_offsets_Z   = np.array( idv_z_offsets_Z   )
+    idv_z_offsets_SFR = np.array( idv_z_offsets_SFR )
+    idv_z_offsets_R   = np.array( idv_z_offsets_R   )
+    redshifts         = np.array( redshifts )
     
     zs = np.arange(0,9)
     
@@ -301,21 +319,30 @@ def alpha_evo(sim, ax, color, marker):
     
     alpha_evo_idv_z = np.zeros( len(zs) )
     
-    mk_hist2d(all_offsets_SFR, all_offsets_Z, -1.0*alpha_evo_global, _,
-              BLUE + 'FMR_paper2/checks/' + 'evolution_%s' %sim + '.pdf',
-              sim, None)
+#     mk_hist2d(all_offsets_SFR, all_offsets_Z, -1.0*alpha_evo_global, _,
+#               BLUE + 'FMR_paper2/checks/' + 'evolution_%s' %sim + '.pdf',
+#               sim, None)
+    
+    #############
+    ## Just for visualisation purposes
+    alpha_evo_global_2, _ = np.polyfit( idv_z_offsets_SFR, idv_z_offsets_Z, 1 )
+    alpha_evo_global_2 *= -1
+    # mk_hist2d(idv_z_offsets_SFR, idv_z_offsets_Z, -1.0*alpha_evo_global_2, _,
+    #           BLUE + 'FMR_paper2/checks/' + 'evolution_%s_idv_z' %sim + '.pdf',
+    #           sim, None)
+    #############
     
     for index, z in enumerate(zs):
         if index == 0:
             continue
         mask = (redshifts == z)
-        x, y = all_offsets_SFR[mask], all_offsets_Z[mask]
+        x, y = idv_z_offsets_SFR[mask], idv_z_offsets_Z[mask]
         
         alpha_evo_idv_z[index], b = np.polyfit( x, y, 1 )
         
-        mk_hist2d(x, y, alpha_evo_idv_z[index], b,
-                  BLUE + 'FMR_paper2/checks/' + 'evolution_%s_z=%s' %(sim,index) + '.pdf',
-                  sim, r'$z=%s$' %index)
+        # mk_hist2d(x, y, alpha_evo_idv_z[index], b,
+        #           BLUE + 'FMR_paper2/checks/' + 'evolution_%s_z=%s' %(sim,index) + '.pdf',
+        #           sim, r'$z=%s$' %index)
         
     alpha_evo_idv_z *= -1
     
@@ -562,9 +589,9 @@ strong_globals  = []
 strong_idv      = []
 strong_beta     = []
 
-scatter = False
+scatter = True
 evo     = True
-strong  = False
+strong  = True
 
 if scatter:
     fig = plt.figure( figsize=(12,6) ) 
@@ -652,9 +679,9 @@ if scatter and evo:
     
     for idx, sim in enumerate(sims):
         print(sim)
-        plt.axhline( scatter_globals[idx] / evo_globals[idx] , color=colors[idx], linestyle='--' )
-        # plt.scatter( np.arange(0,9), scatter_idv[idx] / evo_idv[idx], color=colors[idx],
-        #              marker=markers[idx], label=whichSim2Tex[sim], s=100 )
+        plt.axhline( scatter_globals[idx] / evo_globals[idx], color=colors[idx], linestyle='--' )
+        plt.scatter( np.arange(0,9), scatter_idv[idx] / evo_idv[idx], color=colors[idx],
+                     marker=markers[idx], label=whichSim2Tex[sim], s=100 )
         
     print(scatter_globals, evo_globals)
     
